@@ -1,2 +1,2 @@
-floppya: 1_44=boot-sect.bin, status=inserted
+floppya: 1_44=boot-sect-kernel.bin, status=inserted
 boot: a
