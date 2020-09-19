@@ -1,3 +1,3 @@
 int main() {
-  return 0xFECA;
+  return 0xCAFE;
 }

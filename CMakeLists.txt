@@ -43,10 +43,37 @@ endif()
 project(os)
 
 if (build_the_toolchain)
-  find_library(GMP gmp REQUIRED)
-  find_library(MPFR mpfr REQUIRED)
-  find_library(LIBMPC mpc REQUIRED)
-  find_program(DEJAGNU runtest REQUIRED)
+  ExternalProject_Add(gmp
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+      URL https://gmplib.org/download/gmp/gmp-6.2.0.tar.xz
+	  https://ftp.gnu.org/gnu/gmp/gmp-6.2.0.tar.xz
+    URL_HASH SHA256=258e6cd51b3fbdfc185c716d55f82c08aff57df0c6fbd143cf6ed561267a1526
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_CURRENT_BINARY_DIR} --enable-cxx --with-pic
+    TEST_BEFORE_INSTALL 1
+    TEST_COMMAND make check
+    )
+
+  ExternalProject_Add(mpfr
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS gmp
+      URL https://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
+	  https://ftpmirror.gnu.org/mpfr/mpfr-4.1.0.tar.xz
+    URL_HASH SHA256=0c98a3f1732ff6ca4ea690552079da9c597872d30e96ec28414ee23c95558a7f
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_CURRENT_BINARY_DIR} --disable-dependency-tracking --disable-silent-rules --with-gmp=${CMAKE_CURRENT_BINARY_DIR}
+    TEST_BEFORE_INSTALL 1
+    TEST_COMMAND make check
+    )
+
+  ExternalProject_Add(libmpc
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS gmp mpfr
+      URL https://ftp.gnu.org/gnu/mpc/mpc-1.2.0.tar.gz
+	  https://ftpmirror.gnu.org/mpc/mpc-1.2.0.tar.gz
+    URL_HASH SHA256=e90f2d99553a9c19911abdb4305bf8217106a957e3994436428572c8dfe8fda6
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_CURRENT_BINARY_DIR} --disable-dependency-tracking --disable-silent-rules --with-gmp=${CMAKE_CURRENT_BINARY_DIR} --with-mpfr=${CMAKE_CURRENT_BINARY_DIR}
+    TEST_BEFORE_INSTALL 1
+    TEST_COMMAND make check
+    )
 
   ExternalProject_Add(binutils
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}
@@ -59,12 +86,12 @@ if (build_the_toolchain)
     )
 
   ExternalProject_Add(gcc
-    DEPENDS binutils
+    DEPENDS binutils mpfr gmp libmpc
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}
     URL https://ftp.gnu.org/gnu/gcc/gcc-10.2.0/gcc-10.2.0.tar.xz
 	https://ftpmirror.gnu.org/gcc/gcc-10.2.0/gcc-10.2.0.tar.xz
     URL_HASH SHA256=b8dd4368bb9c7f0b98188317ee0254dd8cc99d1e3a18d0ff146c855fe16c1d8c
-    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_CURRENT_BINARY_DIR} --infodir=${CMAKE_CURRENT_BINARY_DIR}/share --mandir=${CMAKE_CURRENT_BINARY_DIR}/share --target=${TARGET} --disable-nls --enable-languages=c,c++ --without-headers
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${CMAKE_CURRENT_BINARY_DIR} --infodir=${CMAKE_CURRENT_BINARY_DIR}/share --mandir=${CMAKE_CURRENT_BINARY_DIR}/share --target=${TARGET} --disable-nls --enable-languages=c,c++ --without-headers --with-gmp=${CMAKE_CURRENT_BINARY_DIR} --with-mpfr=${CMAKE_CURRENT_BINARY_DIR} --with-mpc=${CMAKE_CURRENT_BINARY_DIR}
     BUILD_COMMAND make all-gcc all-target-libgcc
     INSTALL_COMMAND make install-gcc install-target-libgcc
     )
