@@ -2,11 +2,15 @@
 #
 # It can be used in two steps.  First, build the toolchain for
 # compiling and linking programs for the target architecture $TARGET.
+#
 # This relies on the host operating system.  The host needs to have a
-# compiler as well as a few dependencies:
-# cmake -S . -B toolchain/ -Dbuild_the_toolchain=ON
+# compiler, `nasm` and `bochs` installed:
+#   $ cmake -S . -B toolchain/ -Dbuild_the_toolchain=ON
+#   $ make -C toolchain/
+#
 # After that, use the toolchain to build the operating system itself:
-# cmake -S . -B build/
+#   $ cmake -S . -B build/
+#   $ make run -C build/
 cmake_minimum_required(VERSION 3.18)
 include(ExternalProject)
 
@@ -98,26 +102,66 @@ if (build_the_toolchain)
   return()
 endif()
 
-# This gets substituted into `nasm -f <value>` for compilation.
-set(CMAKE_ASM_NASM_OBJECT_FORMAT bin)
 # CMake insists on a linking step, even though the bootloader doesn't
 # need it.  Just rename the `.asm.o` file into a `.bin` file.
 set(CMAKE_ASM_NASM_LINK_EXECUTABLE "mv <OBJECTS> <TARGET>")
 # `CMAKE_ASM_NASM_OBJECT_FORMAT` won't get set if `enable_language` is
 # placed higher.
 enable_language(ASM_NASM)
+# We need two build NASM files in two ways:
+#  - `-f bin` for the boot loader,
+#  - `-f elf` for everything else such as the libraries written in assembly.
+# 
+# This is achieved in a special way.  First, the default rule for compiling 
+# NASM is redefined.  It's the same as the default, but it doesn't have the
+# facilities that automatically add the `-f <format>` parameter.
+set(CMAKE_ASM_NASM_COMPILE_OBJECT "<CMAKE_ASM_NASM_COMPILER> <INCLUDES> <FLAGS> -o <OBJECT> <SOURCE>")
+# In general case, the output of NASM needs to be in `elf` format so that it
+# be linked with the C code.
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf)
+# Add `-f <format>` parameter when compiling NASM.  The value of `<format>`
+# is set to `CMAKE_ASM_NASM_OBJECT_FORMAT` unless the target has the
+# `NASM_OBJECT_FORMAT` property defined on it.
+add_compile_options(
+    #    if NASM is being compiled produce a string value, otherwise it's empty.
+    "$<$<COMPILE_LANGUAGE:ASM_NASM>:-f $<IF:$<BOOL:$<TARGET_PROPERTY:NASM_OBJECT_FORMAT>>,\
+    $<TARGET_PROPERTY:NASM_OBJECT_FORMAT>,${CMAKE_ASM_NASM_OBJECT_FORMAT}>>"
+    # The produced value is 
+    # "-f <TARGET_PROPERTY:NASM_OBJECT_FORMAT or CMAKE_ASM_NASM_OBJECT_FORMAT>".
+)
+
 # This is needed for NASM to find its %includes, which is merely a
 # text replacement.  We don't need to link multiple object files, since NASM composes a one source file that contains all the includes.
 include_directories(${PROJECT_SOURCE_DIR})
 add_executable(boot-sect boot-sect.asm)
+set_target_properties(boot-sect PROPERTIES NASM_OBJECT_FORMAT bin)
 set_target_properties(boot-sect PROPERTIES OUTPUT_NAME boot-sect.bin)
 
-add_library(kernel OBJECT kernel.c)
+# The structure of the operating system image is |boot loader|kernel|.  The
+# |kernel| from the linker perspective is the entrance function that has to
+# be in the beginning because that's what the boot loader start executing.
+# The entrance function uses the typical C-linking to link another library called 
+# "kernel".  libkernel can then depend on other libraries in a normal way.
+add_library(int-types INTERFACE)
+target_sources(int-types INTERFACE int-types.h)
+add_library(idt-flush idt-flush.asm)
+add_library(idt-handlers idt-handlers.asm)
+add_library(kernel kernel.c)
+target_link_libraries(kernel PUBLIC idt-flush)
+target_link_libraries(kernel PUBLIC idt-handlers)
+target_link_libraries(kernel PUBLIC int-types)
+
+add_executable(system kernel-entry.c)
+# This is actually passing arguments to GCC.  No need for special libraries 
+# related to startup in user-space.  GCC still recommends to link with libgcc.
+target_link_libraries(system "-nostdlib -lgcc")
+target_link_libraries(system kernel)
+set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 
 # Call the linker directly to pass the special options.
 add_custom_target(kernel-bin
-  DEPENDS kernel
-  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin -Ttext 0x1000 $<TARGET_OBJECTS:kernel> --oformat binary
+  DEPENDS system
+  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin -Ttext 0x1000 $<TARGET_LINKER_FILE:system> --oformat binary
   BYPRODUCTS kernel.bin
   )
 
@@ -127,7 +171,6 @@ add_custom_target(link-boot-sect
   COMMAND sh -c 'cat $<TARGET_FILE:boot-sect> ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin > ${CMAKE_CURRENT_BINARY_DIR}/boot-sect-kernel.bin'
   )
 
-# `-q` skips the user prompt at the start.
 add_custom_target(run
-  COMMAND bochs -f ../bochsrc.txt -q)
+  COMMAND bochs -f ../bochsrc.txt -q)  # `-q` skips the user prompt at the start.
 add_dependencies(run link-boot-sect)

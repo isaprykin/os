@@ -7,9 +7,9 @@
 
 gdt_start:
 
-null_descriptor:		; The null descriptor.  It's not used and it is
-	dd 0x0			; generally considered a idea.  It can be used
-	dd 0x0          	; to initialize unused segment registers.
+null_descriptor:        ; The null descriptor.  It's not used and it is
+	dd 0x0              ; generally considered a good idea.  It can be used
+	dd 0x0              ; to initialize unused segment registers.
 
 code_segment_descriptor:
 	dw 0xffff		; Limit of the segment.
@@ -86,4 +86,4 @@ switch_to_protected_mode:
 	mov ebp, 0xC00000	; Set stack somewhere far away, otherwise its
 	mov esp, ebp		; value is from before the protected mode.
 
-	call protected_mode
+	jmp protected_mode

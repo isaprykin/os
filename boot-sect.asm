@@ -6,7 +6,7 @@ KERNEL_ADDRESS equ 0x1000
         mov dl, 0               ; The boot drive.
         call load_disk_starting_second_sector
 
-	call switch_to_protected_mode
+        call switch_to_protected_mode
 
 [bits 32]
 protected_mode:
