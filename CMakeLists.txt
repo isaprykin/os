@@ -6,7 +6,7 @@
 # This relies on the host operating system.  The host needs to have a
 # compiler, `nasm` and `bochs` installed:
 #   $ cmake -S . -B toolchain/ -Dbuild_the_toolchain=ON
-#   $ make -C toolchain/
+#   $ make -C toolchain/ -j$(nproc)
 #
 # After that, use the toolchain to build the operating system itself:
 #   $ cmake -S . -B build/
