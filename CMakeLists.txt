@@ -143,7 +143,9 @@ set_target_properties(boot-sect PROPERTIES OUTPUT_NAME boot-sect.bin)
 # The entrance function uses the typical C-linking to link another library called 
 # "kernel".  libkernel can then depend on other libraries in a normal way.
 add_library(idt-flush idt-flush.asm)
+add_library(isr isr.c isr.h)
 add_library(idt-handlers idt-handlers.asm)
+target_link_libraries(idt-handlers PUBLIC isr)
 add_library(kernel kernel.c)
 target_link_libraries(kernel PUBLIC idt-flush)
 target_link_libraries(kernel PUBLIC idt-handlers)
@@ -155,7 +157,7 @@ target_link_libraries(system "-nostdlib -lgcc -Wl,-Ttext -Wl,0x1000")
 target_link_libraries(system kernel)
 set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 
-# Call the linker directly to pass the special options.
+# Convert the complete kernel to .bin format.
 add_custom_target(kernel-bin
   DEPENDS system
   COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf $<TARGET_LINKER_FILE:system>
@@ -169,6 +171,7 @@ add_custom_target(link-boot-sect
   COMMAND sh -c 'cat $<TARGET_FILE:boot-sect> ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin > ${CMAKE_CURRENT_BINARY_DIR}/boot-sect-kernel.bin'
   )
 
+# Note: bochs will hit the magic break point on `asm volatile("xchgw %bx, %bx");`.
 add_custom_target(run
   COMMAND bochs -f ../bochsrc.txt -q)  # `-q` skips the user prompt at the start.
 add_dependencies(run link-boot-sect)

@@ -34,7 +34,7 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector, uint8_t flags) 
 }
 
 void init_idt() {
-   idt_descriptor_ptr.limit = sizeof(struct idt_interrupt_gate) * 2;
+   idt_descriptor_ptr.limit = sizeof(idt_entries);
    idt_descriptor_ptr.base  = (uint32_t) &idt_entries;  
 
    // 0x08 bytes is the offset into code segment in GDT that skips over the 
