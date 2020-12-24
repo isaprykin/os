@@ -34,7 +34,7 @@ void idt_set_gate(u8int num, u32int base, u16int selector, u8int flags) {
 }
 
 void init_idt() {
-   idt_descriptor_ptr.limit = sizeof(struct idt_interrupt_gate);
+   idt_descriptor_ptr.limit = sizeof(struct idt_interrupt_gate) * 2;
    idt_descriptor_ptr.base  = (u32int) &idt_entries;  
 
    // 0x08 bytes is the offset into code segment in GDT that skips over the 
@@ -49,5 +49,6 @@ void init_idt() {
 
 int kernel_main() {
   init_idt();
+  asm volatile ("int $0x1");
   return 0xCAFE;
 }

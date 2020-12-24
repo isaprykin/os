@@ -154,14 +154,14 @@ target_link_libraries(kernel PUBLIC int-types)
 add_executable(system kernel-entry.c)
 # This is actually passing arguments to GCC.  No need for special libraries 
 # related to startup in user-space.  GCC still recommends to link with libgcc.
-target_link_libraries(system "-nostdlib -lgcc")
+target_link_libraries(system "-nostdlib -lgcc -Wl,-Ttext -Wl,0x1000")
 target_link_libraries(system kernel)
 set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 
 # Call the linker directly to pass the special options.
 add_custom_target(kernel-bin
   DEPENDS system
-  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf -T ../linker.ld $<TARGET_LINKER_FILE:system>
+  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf $<TARGET_LINKER_FILE:system>
   COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-objcopy -O binary -j ".text" -j ".data" -j ".bss" ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin
   BYPRODUCTS kernel.elf kernel.bin
   )
