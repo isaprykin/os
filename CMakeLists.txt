@@ -142,14 +142,11 @@ set_target_properties(boot-sect PROPERTIES OUTPUT_NAME boot-sect.bin)
 # be in the beginning because that's what the boot loader start executing.
 # The entrance function uses the typical C-linking to link another library called 
 # "kernel".  libkernel can then depend on other libraries in a normal way.
-add_library(int-types INTERFACE)
-target_sources(int-types INTERFACE int-types.h)
 add_library(idt-flush idt-flush.asm)
 add_library(idt-handlers idt-handlers.asm)
 add_library(kernel kernel.c)
 target_link_libraries(kernel PUBLIC idt-flush)
 target_link_libraries(kernel PUBLIC idt-handlers)
-target_link_libraries(kernel PUBLIC int-types)
 
 add_executable(system kernel-entry.c)
 # This is actually passing arguments to GCC.  No need for special libraries 
