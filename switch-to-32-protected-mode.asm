@@ -1,3 +1,6 @@
+%ifndef SWITCH_TO_32_PROTECTED_MODE_ASM_
+%define SWITCH_TO_32_PROTECTED_MODE_ASM_
+
 	; Setting up the Global Descriptor Table for switching to the
 	; 32-bit protected mode.
 	;
@@ -87,3 +90,5 @@ switch_to_protected_mode:
 	mov esp, ebp		; value is from before the protected mode.
 
 	jmp protected_mode
+
+%endif  ; SWITCH_TO_32_PROTECTED_MODE_ASM_

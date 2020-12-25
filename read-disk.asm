@@ -1,3 +1,6 @@
+%ifndef READ_DISK_ASM_
+%define READ_DISK_ASM_
+
         ; Load [2, 2 + DH) sectors into ES:BX from the drive DL.  The
         ; first sector is skipped because it contains the boot sector
         ; that is loaded by BIOS.
@@ -11,19 +14,21 @@ load_disk_starting_second_sector:
         mov cl, 0x02            ; Start from the second sector.
         int 0x13                ; Call BIOS's disk interrupt.
 
-        jc error_reading_disk   ; Carry-flag is set on error.
+        jc .error_reading_disk  ; Carry-flag is set on error.
 
         pop dx                  ; Original requested number of sectors.
         cmp dh, al              ; AL is set to the number of sectors transferred.
-        jne error_reading_disk  ; It's an error to not read all requested sectors.
+        jne .error_reading_disk ; It's an error to not read all requested sectors.
         ret
 
         ; Print an error message.
-error_reading_disk:
-        mov bx, ERROR_MSG
+.error_reading_disk:
+        mov bx, .ERROR_MSG
         call print_string
         jmp $
+        
+        .ERROR_MSG db 'Error reading the disk!', 0
 
 %include 'print-string.asm'
 
-        ERROR_MSG db 'Error reading the disk!', 0
+%endif  ; READ_DISK_ASM_
