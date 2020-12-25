@@ -153,7 +153,7 @@ target_link_libraries(kernel PUBLIC idt-handlers)
 add_executable(system kernel-entry.c)
 # This is actually passing arguments to GCC.  No need for special libraries 
 # related to startup in user-space.  GCC still recommends to link with libgcc.
-target_link_libraries(system "-nostdlib -lgcc -Wl,-Ttext -Wl,0x1000")
+target_link_libraries(system "-nostdlib -lgcc -Wl,-T -Wl,../linker.ld")
 target_link_libraries(system kernel)
 set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 
