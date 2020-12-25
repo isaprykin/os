@@ -33,6 +33,7 @@ if (NOT build_the_toolchain)
   # Link a free standing C code without relying on standard libraries or treating
   # `main()` in a special way.
   SET(CMAKE_C_FLAGS "-ffreestanding" CACHE STRING "" FORCE)
+  SET(CMAKE_CXX_FLAGS "-ffreestanding -Wall -Wextra -Werror -fno-exceptions -fno-rtti" CACHE STRING "" FORCE)
   # CMake will try to test the toolchain compiler.  It's going to
   # assume the standard library, which isn't yet available without
   # setting this option.
@@ -143,14 +144,14 @@ set_target_properties(boot-sect PROPERTIES OUTPUT_NAME boot-sect.bin)
 # The entrance function uses the typical C-linking to link another library called 
 # "kernel".  libkernel can then depend on other libraries in a normal way.
 add_library(idt-flush idt-flush.asm)
-add_library(isr isr.c isr.h)
+add_library(isr isr.h isr.cc)
 add_library(idt-handlers idt-handlers.asm)
 target_link_libraries(idt-handlers PUBLIC isr)
-add_library(kernel kernel.c)
+add_library(kernel kernel.cc)
 target_link_libraries(kernel PUBLIC idt-flush)
 target_link_libraries(kernel PUBLIC idt-handlers)
 
-add_executable(system kernel-entry.c)
+add_executable(system kernel-entry.cc)
 # This is actually passing arguments to GCC.  No need for special libraries 
 # related to startup in user-space.  GCC still recommends to link with libgcc.
 target_link_libraries(system "-nostdlib -lgcc -Wl,-T -Wl,../linker.ld")

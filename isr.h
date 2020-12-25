@@ -1,6 +1,9 @@
+#ifndef ISR_H_
+#define ISR_H_
+
 #include <stdint.h>
 
-struct registers {
+struct Registers {
    uint32_t ds;
    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;  // from `pushad`.
    uint32_t interrupt_number;
@@ -8,4 +11,6 @@ struct registers {
    uint32_t eip, cs, eflags, sp, ss;
 };
 
-void isr_handler(const struct registers* registers);
+extern "C" void isr_handler(const Registers* registers);
+
+#endif  // ISR_H_

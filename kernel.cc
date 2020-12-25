@@ -1,8 +1,9 @@
 #include <stdint.h>
 
-struct idt_interrupt_gate {
-   uint16_t base_low;  // The lower 16 bits of the address to jump to when this interrupt fires.
-   uint16_t segment_selector;  // Segment Selector for destination code segment.
+struct IDTInterruptGate {
+   // The lower 16 bits of the address to jump to when this interrupt fires.
+   uint16_t base_low;
+   uint16_t segment_selector;  // Segment Selector for destination code segment
    uint8_t  always_zero;
    // Flags: |P|DPL|DPL|0|D|1|1|1:
    //  -   P: Segment Present flag
@@ -12,19 +13,20 @@ struct idt_interrupt_gate {
    uint16_t base_high;  // The upper 16 bits of the address to jump to.
 } __attribute__((packed));
 
-struct idt_descriptor {
+struct IDTDescriptor {
    uint16_t limit;
    uint32_t base;
 } __attribute__((packed));
 
-extern void isr0();
-extern void isr1();
-extern void idt_flush(u32int);
+extern "C" void isr0();
+extern "C" void isr1();
+extern "C" void idt_flush(uint32_t);
 
-struct idt_interrupt_gate idt_entries[2];
-struct idt_descriptor idt_descriptor_ptr;
+IDTInterruptGate idt_entries[2];
+IDTDescriptor idt_descriptor_ptr;
 
-void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector, uint8_t flags) {
+void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector,
+                  uint8_t flags) {
    idt_entries[num].base_low = base & 0xFFFF;
    idt_entries[num].base_high = (base >> 16) & 0xFFFF;
 
@@ -34,10 +36,11 @@ void idt_set_gate(uint8_t num, uint32_t base, uint16_t selector, uint8_t flags) 
 }
 
 void init_idt() {
+   asm volatile("xchgw %bx, %bx");
    idt_descriptor_ptr.limit = sizeof(idt_entries);
    idt_descriptor_ptr.base  = (uint32_t) &idt_entries;  
 
-   // 0x08 bytes is the offset into code segment in GDT that skips over the 
+   // 0x08 bytes is the offset into code segment in GDT that skips over the
    // null segment.
    // 0x8E is 8 for Present 0 privelege level in |P|DPL|DPL|0 and 
    // E for 80386 32-bit interrupt gate type.
