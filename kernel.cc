@@ -110,7 +110,6 @@ void init_idt() {
 }
 
 int kernel_main() {
-  init_idt();
-  asm volatile ("int $0x1f");
+  // Do not enable interrupts as they haven't been upgraded to 64-bit yet.
   return 0xCAFE;
 }

@@ -6,14 +6,14 @@ KERNEL_ADDRESS equ 0x1000
         mov dl, 0               ; The boot drive.
         call load_disk_starting_second_sector
         call enable_a20_through_bios
-        call switch_to_protected_mode
+        call switch_to_long_mode
 
 %include 'a20.asm'
 %include 'read-disk.asm'
-%include 'switch-to-32-protected-mode.asm'
+%include 'switch-to-64-long-mode.asm'
 
-[bits 32]
-protected_mode:
+[bits 64]
+long_mode:
         call KERNEL_ADDRESS	; We will not return.
         jmp $	                ; Jump in the same place forever.
 
