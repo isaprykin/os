@@ -32,8 +32,8 @@ if (NOT build_the_toolchain)
   set(CMAKE_OSX_SYSROOT ${TOOLCHAIN_ROOT})
   # Link a free standing C code without relying on standard libraries or treating
   # `main()` in a special way.
-  SET(CMAKE_C_FLAGS "-ffreestanding" CACHE STRING "" FORCE)
-  SET(CMAKE_CXX_FLAGS "-ffreestanding -Wall -Wextra -Werror -fno-exceptions -fno-rtti" CACHE STRING "" FORCE)
+  SET(CMAKE_C_FLAGS "-ffreestanding -Wall -Wextra -Werror -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2" CACHE STRING "" FORCE)
+  SET(CMAKE_CXX_FLAGS "-ffreestanding -Wall -Wextra -Werror -fno-exceptions -fno-rtti -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2" CACHE STRING "" FORCE)
   # CMake will try to test the toolchain compiler.  It's going to
   # assume the standard library, which isn't yet available without
   # setting this option.
