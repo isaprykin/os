@@ -17,7 +17,7 @@ include(ExternalProject)
 option(build_the_toolchain "Whether to compile the toolchain first?" OFF)
 
 set(TOOLCHAIN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/toolchain")
-set(TARGET "i386-elf")
+set(TARGET "x86_64-elf")
 
 if (NOT build_the_toolchain)
   if (NOT EXISTS ${TOOLCHAIN_ROOT})
@@ -25,7 +25,7 @@ if (NOT build_the_toolchain)
       "built.  If the toolchain isn't there yet, yet then run CMake with "
       "-Dbuilt_the_toolchain=ON.")
   endif()
-  set(CMAKE_SYSTEM_PROCESSOR i386)
+  set(CMAKE_SYSTEM_PROCESSOR x86_64)
   set(CMAKE_SYSTEM_VERSION 1)
   # Use the toolchain's libraries instead of the one's on the host.
   set(CMAKE_SYSROOT ${TOOLCHAIN_ROOT})
@@ -119,7 +119,7 @@ enable_language(ASM_NASM)
 set(CMAKE_ASM_NASM_COMPILE_OBJECT "<CMAKE_ASM_NASM_COMPILER> <INCLUDES> <FLAGS> -o <OBJECT> <SOURCE>")
 # In general case, the output of NASM needs to be in `elf` format so that it
 # be linked with the C code.
-set(CMAKE_ASM_NASM_OBJECT_FORMAT elf)
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)
 # Add `-f <format>` parameter when compiling NASM.  The value of `<format>`
 # is set to `CMAKE_ASM_NASM_OBJECT_FORMAT` unless the target has the
 # `NASM_OBJECT_FORMAT` property defined on it.

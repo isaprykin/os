@@ -4,11 +4,11 @@
 #include <stdint.h>
 
 struct Registers {
-   uint32_t ds;
-   uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;  // from `pushad`.
-   uint32_t interrupt_number;
-   uint32_t error_code;
-   uint32_t eip, cs, eflags, sp, ss;
+   uint64_t ds;
+   uint64_t edi, esi, ebp, esp, ebx, edx, ecx, eax;  // from `pushad`.
+   uint64_t interrupt_number;
+   uint64_t error_code;
+   uint64_t eip, cs, eflags, sp, ss;
 };
 
 extern "C" void isr_handler(const Registers* registers);
