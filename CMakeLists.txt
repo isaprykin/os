@@ -17,7 +17,7 @@ include(ExternalProject)
 option(build_the_toolchain "Whether to compile the toolchain first?" OFF)
 
 set(TOOLCHAIN_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/toolchain")
-set(TARGET "i386-elf")
+set(TARGET "x86_64-elf")
 
 if (NOT build_the_toolchain)
   if (NOT EXISTS ${TOOLCHAIN_ROOT})
@@ -25,14 +25,15 @@ if (NOT build_the_toolchain)
       "built.  If the toolchain isn't there yet, yet then run CMake with "
       "-Dbuilt_the_toolchain=ON.")
   endif()
-  set(CMAKE_SYSTEM_PROCESSOR i386)
+  set(CMAKE_SYSTEM_PROCESSOR x86_64)
   set(CMAKE_SYSTEM_VERSION 1)
   # Use the toolchain's libraries instead of the one's on the host.
   set(CMAKE_SYSROOT ${TOOLCHAIN_ROOT})
   set(CMAKE_OSX_SYSROOT ${TOOLCHAIN_ROOT})
   # Link a free standing C code without relying on standard libraries or treating
   # `main()` in a special way.
-  SET(CMAKE_C_FLAGS "-ffreestanding" CACHE STRING "" FORCE)
+  SET(CMAKE_C_FLAGS "-ffreestanding -Wall -Wextra -Werror -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2" CACHE STRING "" FORCE)
+  SET(CMAKE_CXX_FLAGS "-ffreestanding -Wall -Wextra -Werror -fno-exceptions -fno-rtti -mcmodel=large -mno-red-zone -mno-mmx -mno-sse -mno-sse2" CACHE STRING "" FORCE)
   # CMake will try to test the toolchain compiler.  It's going to
   # assume the standard library, which isn't yet available without
   # setting this option.
@@ -118,7 +119,7 @@ enable_language(ASM_NASM)
 set(CMAKE_ASM_NASM_COMPILE_OBJECT "<CMAKE_ASM_NASM_COMPILER> <INCLUDES> <FLAGS> -o <OBJECT> <SOURCE>")
 # In general case, the output of NASM needs to be in `elf` format so that it
 # be linked with the C code.
-set(CMAKE_ASM_NASM_OBJECT_FORMAT elf)
+set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)
 # Add `-f <format>` parameter when compiling NASM.  The value of `<format>`
 # is set to `CMAKE_ASM_NASM_OBJECT_FORMAT` unless the target has the
 # `NASM_OBJECT_FORMAT` property defined on it.
@@ -142,26 +143,25 @@ set_target_properties(boot-sect PROPERTIES OUTPUT_NAME boot-sect.bin)
 # be in the beginning because that's what the boot loader start executing.
 # The entrance function uses the typical C-linking to link another library called 
 # "kernel".  libkernel can then depend on other libraries in a normal way.
-add_library(int-types INTERFACE)
-target_sources(int-types INTERFACE int-types.h)
 add_library(idt-flush idt-flush.asm)
+add_library(isr isr.h isr.cc)
 add_library(idt-handlers idt-handlers.asm)
-add_library(kernel kernel.c)
+target_link_libraries(idt-handlers PUBLIC isr)
+add_library(kernel kernel.cc)
 target_link_libraries(kernel PUBLIC idt-flush)
 target_link_libraries(kernel PUBLIC idt-handlers)
-target_link_libraries(kernel PUBLIC int-types)
 
-add_executable(system kernel-entry.c)
+add_executable(system kernel-entry.cc)
 # This is actually passing arguments to GCC.  No need for special libraries 
 # related to startup in user-space.  GCC still recommends to link with libgcc.
-target_link_libraries(system "-nostdlib -lgcc")
+target_link_libraries(system "-nostdlib -lgcc -Wl,-T -Wl,../linker.ld")
 target_link_libraries(system kernel)
 set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 
-# Call the linker directly to pass the special options.
+# Convert the complete kernel to .bin format.
 add_custom_target(kernel-bin
   DEPENDS system
-  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf -T ../linker.ld $<TARGET_LINKER_FILE:system>
+  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf $<TARGET_LINKER_FILE:system>
   COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-objcopy -O binary -j ".text" -j ".data" -j ".bss" ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin
   BYPRODUCTS kernel.elf kernel.bin
   )
@@ -172,6 +172,7 @@ add_custom_target(link-boot-sect
   COMMAND sh -c 'cat $<TARGET_FILE:boot-sect> ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin > ${CMAKE_CURRENT_BINARY_DIR}/boot-sect-kernel.bin'
   )
 
+# Note: bochs will hit the magic break point on `asm volatile("xchgw %bx, %bx");`.
 add_custom_target(run
   COMMAND bochs -f ../bochsrc.txt -q)  # `-q` skips the user prompt at the start.
 add_dependencies(run link-boot-sect)

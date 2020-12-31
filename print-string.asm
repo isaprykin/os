@@ -1,3 +1,6 @@
+%ifndef PRINT_STRING_ASM_
+%define PRINT_STRING_ASM_
+
         ; Print the null-terminated BX string.
 print_string:
         mov si, bx
@@ -16,3 +19,5 @@ print_string:
         jmp .keep_printing
 .done:
         ret
+
+%endif  ; PRINT_STRING_ASM_

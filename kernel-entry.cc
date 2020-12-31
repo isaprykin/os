@@ -1,4 +1,4 @@
 extern int kernel_main();
-int _start() {
+extern "C" int _start() {
   return kernel_main();
 }
