@@ -5,10 +5,10 @@
 
 struct Registers {
    uint64_t ds;
-   uint64_t edi, esi, ebp, esp, ebx, edx, ecx, eax;  // from `pushad`.
+   uint64_t rdi, rsi, rbp, rsp, rbx, rdx, rcx, rax;
    uint64_t interrupt_number;
    uint64_t error_code;
-   uint64_t eip, cs, eflags, sp, ss;
+   uint64_t rip, cs, eflags, sp, ss;
 };
 
 extern "C" void isr_handler(const Registers* registers);
