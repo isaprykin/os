@@ -103,6 +103,10 @@ if (build_the_toolchain)
   return()
 endif()
 
+# On Linux hosts, CMake appends `-rdynamic` to the GCC invocation which isn't supported.
+# It doesn't do that on OS X hosts.  These variables erase `-rdynamic`.
+set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
+set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 # CMake insists on a linking step, even though the bootloader doesn't
 # need it.  Just rename the `.asm.o` file into a `.bin` file.
 set(CMAKE_ASM_NASM_LINK_EXECUTABLE "mv <OBJECTS> <TARGET>")

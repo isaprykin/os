@@ -8,6 +8,8 @@
 	; label after `[bits 64]` on the code that is going to be
 	; executed in the 64-bit long mode.
 
+ALIGN 4             ; AMD recommends to alignment for GDT pointer for
+                    ; performance reasons.
 gdt_start:
 
 null_descriptor:        ; The null descriptor.  It's not used and it is
@@ -60,8 +62,6 @@ data_segment_descriptor:
 
 gdt_end:
 
-ALIGN 4             ; AMD recommends to alignment for GDT pointer for
-                    ; performance reasons.
 gdt_descriptors:
 	; Size of the descriptor in bytes:
 	dw gdt_end - gdt_start - 1
