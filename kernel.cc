@@ -137,7 +137,7 @@ SegmentDescriptor CreateCodeSegment(uint8_t default_operand_size,
                                     uint8_t conforming) {
   SegmentDescriptor descriptor{};
   descriptor.type_2 = conforming;
-  descriptor.type_3 = 1;  //  Ex bit set for "executable code".
+  descriptor.type_3 = 1;  // Ex bit set for "executable code".
   descriptor.s = 1;       // S bit set for "code or data".
   descriptor.descriptor_privilege_level = descriptor_privilege_level;
   descriptor.present = present;
@@ -148,7 +148,11 @@ SegmentDescriptor CreateCodeSegment(uint8_t default_operand_size,
 
 SegmentDescriptor CreateDataSegment(uint8_t present) {
   SegmentDescriptor descriptor{};
-  descriptor.type_3 = 0;  //  Ex bit unset for "non-executable data".
+  descriptor.type_1 = 1;  // RW bit for writable.  AMD manual suggests that this
+  // is ignored in long-mode, yet bochs fails with "load_seg_reg(SS): not
+  // writable data segment".  There are suggestions online that it's not so
+  // clear.  I set it to be safe.
+  descriptor.type_3 = 0;  // Ex bit unset for "non-executable data".
   descriptor.s = 1;       // S bit set for "code or data".
   descriptor.present = present;
   return descriptor;
@@ -176,11 +180,27 @@ struct GlobalDescriptorTable {
   SegmentDescriptor code_segment;
   SegmentDescriptor data_segment;
 
-  static void Flush(const DescriptorTablePointer& descriptor_table_pointer) {
-    asm volatile("lgdt %0"
-                 : /* No outputs */
-                 : "m"(descriptor_table_pointer)
-                 : "memory");
+  void Flush(const DescriptorTablePointer& descriptor_table_pointer) {
+    asm volatile(
+        "xchgw %%bx, %%bx\n\tlgdt %[descriptor_table_pointer]\n\t"
+        "pushq %[code_segment]\n\t"
+        "leaq new_cs_register(%%rip), %%rax\n\t"
+        "pushq %%rax\n\t"
+        "lretq\n\t"
+        "new_cs_register:\n\t"
+        "movq %[data_segment], %%rax\n\t"
+        "movq %%rax, %%ds\n\t"
+        "movq %%rax, %%ss\n\t"
+        "movq %%rax, %%es\n\t"
+        "movq %%rax, %%fs\n\t"
+        "movq %%rax, %%gs\n\t"
+        : /* No outputs */
+        : [ descriptor_table_pointer ] "m"(descriptor_table_pointer),
+          [ code_segment ] "r"((&code_segment - &null_segment) *
+                               sizeof(SegmentDescriptor)),
+          [ data_segment ] "r"((&data_segment - &null_segment) *
+                               sizeof(SegmentDescriptor))
+        : "memory");
   }
 } __attribute__((aligned(4))) __attribute__((packed));
 
@@ -192,7 +212,7 @@ int kernel_main() {
                         /* conforming = */ 0),
       CreateDataSegment(/* present = */ 1), CreateNullSegment());
   auto gdt_pointer = DescriptorTablePointer::Point(gdt);
-  GlobalDescriptorTable::Flush(gdt_pointer);
+  gdt.Flush(gdt_pointer);
   init_idt();
   return 0xCAFE;
 }
