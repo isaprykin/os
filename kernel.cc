@@ -116,7 +116,7 @@ struct SegmentDescriptor {
   uint16_t segment_limit_low;
   uint16_t base_address_low;
   uint8_t base_address_middle;
-  uint8_t type_0 : 1;
+  uint8_t type_0 : 1;  // 8th bit.
   uint8_t type_1 : 1;
   uint8_t type_2 : 1;
   uint8_t type_3 : 1;
@@ -129,6 +129,11 @@ struct SegmentDescriptor {
   uint8_t default_operand_size : 1;
   uint8_t granularity : 1;
   uint8_t base_address_high;
+} __attribute__((packed));
+
+struct SystemSegmentDescriptor : public SegmentDescriptor {
+  uint32_t base_address_high_extended;
+  uint32_t reserved_zero = 0;
 } __attribute__((packed));
 
 SegmentDescriptor CreateCodeSegment(uint8_t default_operand_size,
@@ -160,6 +165,41 @@ SegmentDescriptor CreateDataSegment(uint8_t present) {
 
 SegmentDescriptor CreateNullSegment() { return SegmentDescriptor(); }
 
+struct TaskStateSegment {
+  uint32_t reserved_0;
+  uint64_t privilege_stack[3];
+  uint64_t reserved_1;
+  uint64_t interrupt_stack_table[7];
+  uint64_t reserved_2;
+  uint16_t reserved_3;
+  uint16_t iomap_base;
+};
+
+SystemSegmentDescriptor CreateTaskStateSegment(
+    const TaskStateSegment& task_state_segment) {
+  SystemSegmentDescriptor desciptor{};
+  desciptor.segment_limit_low = sizeof(TaskStateSegment) - 1;
+  // TODO: assert that segment_limit_low >= 67h and fits.
+  desciptor.type_0 = 1;  // The type bits are hard coded for an available TSS.
+  desciptor.type_1 = 0;
+  desciptor.type_2 = 0;
+  desciptor.type_3 = 1;
+  desciptor.s = 0;  // Hard coded for TSS.
+  desciptor.descriptor_privilege_level = 0;
+  desciptor.present = 1;
+  desciptor.available_to_software = 0;
+  desciptor.granularity = 0;  // Segment limit is in terms of bytes.
+
+  auto task_state_pointer = reinterpret_cast<uintptr_t>(&task_state_segment);
+  desciptor.base_address_low = task_state_pointer & 0xFFFF;
+  desciptor.base_address_middle = (task_state_pointer >> 16) & 0xFF;
+  desciptor.base_address_high = (task_state_pointer >> 24) & 0xFF;
+  desciptor.base_address_high_extended =
+      (task_state_pointer >> 32) & 0xFFFFFFFF;
+
+  return desciptor;
+}
+
 struct DescriptorTablePointer {
   uint16_t limit;
   const void* base_address;
@@ -173,14 +213,22 @@ struct DescriptorTablePointer {
 
 struct GlobalDescriptorTable {
   GlobalDescriptorTable(SegmentDescriptor code, SegmentDescriptor data,
-                        SegmentDescriptor null)
-      : null_segment(null), code_segment(code), data_segment(data) {}
+                        SegmentDescriptor null,
+                        SystemSegmentDescriptor task_state)
+      : null_segment(null),
+        code_segment(code),
+        data_segment(data),
+        task_state_segment(task_state) {}
 
   SegmentDescriptor null_segment;
   SegmentDescriptor code_segment;
   SegmentDescriptor data_segment;
+  SystemSegmentDescriptor task_state_segment;
 
   void Flush(const DescriptorTablePointer& descriptor_table_pointer) {
+    auto task_state_segment_offset =
+        reinterpret_cast<uintptr_t>(&task_state_segment) -
+        reinterpret_cast<uintptr_t>(&null_segment);
     asm volatile(
         "xchgw %%bx, %%bx\n\tlgdt %[descriptor_table_pointer]\n\t"
         "pushq %[code_segment]\n\t"
@@ -194,23 +242,28 @@ struct GlobalDescriptorTable {
         "movq %%rax, %%es\n\t"
         "movq %%rax, %%fs\n\t"
         "movq %%rax, %%gs\n\t"
+        "movq %[task_state_segment], %%rax\n\t"
+        "ltr %%ax\n\t"
         : /* No outputs */
         : [ descriptor_table_pointer ] "m"(descriptor_table_pointer),
           [ code_segment ] "r"((&code_segment - &null_segment) *
                                sizeof(SegmentDescriptor)),
           [ data_segment ] "r"((&data_segment - &null_segment) *
-                               sizeof(SegmentDescriptor))
+                               sizeof(SegmentDescriptor)),
+          [ task_state_segment ] "r"(task_state_segment_offset)
         : "memory");
   }
 } __attribute__((aligned(4))) __attribute__((packed));
 
 int kernel_main() {
+  TaskStateSegment task_state_segment;
   GlobalDescriptorTable gdt(
       CreateCodeSegment(/* default_operand_size = */ 0,
                         /* long_attribute = */ 1, /* present = */ 1,
                         /* descriptor_privilege_level = */ 0,
                         /* conforming = */ 0),
-      CreateDataSegment(/* present = */ 1), CreateNullSegment());
+      CreateDataSegment(/* present = */ 1), CreateNullSegment(),
+      CreateTaskStateSegment(task_state_segment));
   auto gdt_pointer = DescriptorTablePointer::Point(gdt);
   gdt.Flush(gdt_pointer);
   init_idt();
