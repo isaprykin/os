@@ -230,7 +230,7 @@ struct GlobalDescriptorTable {
         reinterpret_cast<uintptr_t>(&task_state_segment) -
         reinterpret_cast<uintptr_t>(&null_segment);
     asm volatile(
-        "xchgw %%bx, %%bx\n\tlgdt %[descriptor_table_pointer]\n\t"
+        "lgdt %[descriptor_table_pointer]\n\t"
         "pushq %[code_segment]\n\t"
         "leaq new_cs_register(%%rip), %%rax\n\t"
         "pushq %%rax\n\t"
@@ -255,7 +255,12 @@ struct GlobalDescriptorTable {
   }
 } __attribute__((aligned(4))) __attribute__((packed));
 
+void EnableFPU() {
+  asm volatile("fninit\n\t");
+}
+
 int kernel_main() {
+  EnableFPU();
   TaskStateSegment task_state_segment;
   GlobalDescriptorTable gdt(
       CreateCodeSegment(/* default_operand_size = */ 0,
@@ -267,5 +272,5 @@ int kernel_main() {
   auto gdt_pointer = DescriptorTablePointer::Point(gdt);
   gdt.Flush(gdt_pointer);
   init_idt();
-  return 0xCAFE;
+  return reinterpret_cast<uintptr_t>(&gdt) * 1.2f;
 }

@@ -4,9 +4,11 @@
 # compiling and linking programs for the target architecture $TARGET.
 #
 # This relies on the host operating system.  The host needs to have a
-# compiler, `nasm` and `bochs` installed:
+# compiler, `m4`, `nasm` and `bochs` installed:
 #   $ cmake -S . -B toolchain/ -Dbuild_the_toolchain=ON
 #   $ make -C toolchain/ -j$(nproc)
+#
+# Known good versions: nasm 2.14+, bochs 2.6.11+.
 #
 # After that, use the toolchain to build the operating system itself:
 #   $ cmake -S . -B build/
@@ -166,7 +168,7 @@ set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 add_custom_target(kernel-bin
   DEPENDS system
   COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf $<TARGET_LINKER_FILE:system>
-  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-objcopy -O binary -j ".text" -j ".data" -j ".bss" ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin
+  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-objcopy -O binary -j ".text" -j ".rodata" -j ".eh_frame" -j ".data" -j ".bss" ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin
   BYPRODUCTS kernel.elf kernel.bin
   )
 
