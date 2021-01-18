@@ -150,12 +150,15 @@ set_target_properties(boot-sect PROPERTIES OUTPUT_NAME boot-sect.bin)
 # The entrance function uses the typical C-linking to link another library called 
 # "kernel".  libkernel can then depend on other libraries in a normal way.
 add_library(idt-flush idt-flush.asm)
+add_library(io io.h io.cc)
 add_library(isr isr.h isr.cc)
+target_link_libraries(isr PUBLIC io)
 add_library(idt-handlers idt-handlers.asm)
 target_link_libraries(idt-handlers PUBLIC isr)
 add_library(kernel kernel.cc)
 target_link_libraries(kernel PUBLIC idt-flush)
 target_link_libraries(kernel PUBLIC idt-handlers)
+target_link_libraries(kernel PUBLIC io)
 
 add_executable(system kernel-entry.cc)
 # This is actually passing arguments to GCC.  No need for special libraries 

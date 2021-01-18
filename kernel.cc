@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#include "io.h"
+
 struct IDTInterruptGate {
   // The lower 16 bits of the address to jump to when this interrupt fires.
   uint16_t base_low;
@@ -52,9 +54,27 @@ extern "C" void isr28();
 extern "C" void isr29();
 extern "C" void isr30();
 extern "C" void isr31();
+
+extern "C" void irq0();
+extern "C" void irq1();
+extern "C" void irq2();
+extern "C" void irq3();
+extern "C" void irq4();
+extern "C" void irq5();
+extern "C" void irq6();
+extern "C" void irq7();
+extern "C" void irq8();
+extern "C" void irq9();
+extern "C" void irq10();
+extern "C" void irq11();
+extern "C" void irq12();
+extern "C" void irq13();
+extern "C" void irq14();
+extern "C" void irq15();
+
 extern "C" void idt_flush(uint64_t);
 
-IDTInterruptGate idt_entries[32];
+IDTInterruptGate idt_entries[48];
 IDTDescriptor idt_descriptor_ptr;
 
 void idt_set_gate(uint8_t num, uint64_t base, uint16_t selector,
@@ -68,7 +88,7 @@ void idt_set_gate(uint8_t num, uint64_t base, uint16_t selector,
   idt_entries[num].flags = flags;
 }
 
-void init_idt() {
+void InitIDT() {
   idt_descriptor_ptr.limit = sizeof(idt_entries);
   idt_descriptor_ptr.base = (uint64_t)&idt_entries;
 
@@ -109,7 +129,47 @@ void init_idt() {
   idt_set_gate(30, (uint64_t)isr30, 0x08, 0x8E);
   idt_set_gate(31, (uint64_t)isr31, 0x08, 0x8E);
 
+  idt_set_gate(32, (uint64_t)irq0, 0x08, 0x8E);
+  idt_set_gate(33, (uint64_t)irq1, 0x08, 0x8E);
+  idt_set_gate(34, (uint64_t)irq2, 0x08, 0x8E);
+  idt_set_gate(35, (uint64_t)irq3, 0x08, 0x8E);
+  idt_set_gate(36, (uint64_t)irq4, 0x08, 0x8E);
+  idt_set_gate(37, (uint64_t)irq5, 0x08, 0x8E);
+  idt_set_gate(38, (uint64_t)irq6, 0x08, 0x8E);
+  idt_set_gate(39, (uint64_t)irq7, 0x08, 0x8E);
+  idt_set_gate(40, (uint64_t)irq8, 0x08, 0x8E);
+  idt_set_gate(41, (uint64_t)irq9, 0x08, 0x8E);
+  idt_set_gate(42, (uint64_t)irq10, 0x08, 0x8E);
+  idt_set_gate(43, (uint64_t)irq11, 0x08, 0x8E);
+  idt_set_gate(44, (uint64_t)irq12, 0x08, 0x8E);
+  idt_set_gate(45, (uint64_t)irq13, 0x08, 0x8E);
+  idt_set_gate(46, (uint64_t)irq14, 0x08, 0x8E);
+  idt_set_gate(47, (uint64_t)irq15, 0x08, 0x8E);
+
   idt_flush((uint64_t)&idt_descriptor_ptr);
+}
+
+void InitPICForRemapping() {
+  // PIC is initialized and reprogrammed by sending it a sequence of control
+  // words.
+
+  // Interrupt Control Word (ICW) 1: 0x11 : "initialize and expect ICW 4".
+  out8(PIC_1_CONTROL, 0x11);
+  out8(PIC_2_CONTROL, 0x11);
+  // ICW 2: Primary PIC remaps IRQ 0-7 to interrupts 32-39.
+  out8(PIC_1_DATA, 0x20);
+  // ICW 2: Secondary PIC remaps IRQ 8-15 to interrupts 40-47.
+  out8(PIC_2_DATA, 0x28);
+  // ICW 3: Secondary PIC is connected to Primary through IRQ line # 2 (0x4).
+  out8(PIC_1_DATA, 0x04);
+  // ICW 3: Secondary PIC is connected to Primary through IRQ line # 2 (010).
+  out8(PIC_2_DATA, 0x02);
+  // ICW 4: Enable 80x86 mode.
+  out8(PIC_1_DATA, 0x01);
+  out8(PIC_2_DATA, 0x01);
+  // Null out data registers.
+  out8(PIC_1_DATA, 0x0);
+  out8(PIC_2_DATA, 0x0);
 }
 
 struct SegmentDescriptor {
@@ -190,12 +250,12 @@ SystemSegmentDescriptor CreateTaskStateSegment(
   desciptor.available_to_software = 0;
   desciptor.granularity = 0;  // Segment limit is in terms of bytes.
 
-  auto task_state_pointer = reinterpret_cast<uintptr_t>(&task_state_segment);
-  desciptor.base_address_low = task_state_pointer & 0xFFFF;
-  desciptor.base_address_middle = (task_state_pointer >> 16) & 0xFF;
-  desciptor.base_address_high = (task_state_pointer >> 24) & 0xFF;
+  auto task_state_address = reinterpret_cast<uintptr_t>(&task_state_segment);
+  desciptor.base_address_low = task_state_address & 0xFFFF;
+  desciptor.base_address_middle = (task_state_address >> 16) & 0xFF;
+  desciptor.base_address_high = (task_state_address >> 24) & 0xFF;
   desciptor.base_address_high_extended =
-      (task_state_pointer >> 32) & 0xFFFFFFFF;
+      (task_state_address >> 32) & 0xFFFFFFFF;
 
   return desciptor;
 }
@@ -271,6 +331,7 @@ int kernel_main() {
       CreateTaskStateSegment(task_state_segment));
   auto gdt_pointer = DescriptorTablePointer::Point(gdt);
   gdt.Flush(gdt_pointer);
-  init_idt();
+  InitPICForRemapping();
+  InitIDT();
   return reinterpret_cast<uintptr_t>(&gdt) * 1.2f;
 }
