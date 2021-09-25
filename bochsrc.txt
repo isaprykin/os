@@ -1,3 +1,4 @@
 floppya: 1_44=boot-sect-kernel.bin, status=inserted
 boot: a
 magic_break: enabled=1
+display_library: sdl2
