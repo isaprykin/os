@@ -2,14 +2,14 @@
 KERNEL_ADDRESS equ 0x1000
 
         mov bx, KERNEL_ADDRESS  ; The memory offest where to place the kernel.
-        mov dh, 15              ; Read 15*512=7680 bytes.
+        mov dh, 17              ; Read 17*512=8704 bytes.
         mov dl, 0               ; The boot drive.
         call load_disk_starting_second_sector
         call enable_a20_through_bios
         call switch_to_long_mode
 
-%include 'a20.asm'
 %include 'read-disk.asm'
+%include 'a20.asm'
 %include 'switch-to-64-long-mode.asm'
 
 [bits 64]

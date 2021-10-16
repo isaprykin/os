@@ -13,8 +13,8 @@ ALIGN 4             ; AMD recommends to alignment for GDT pointer for
 gdt_start:
 
 null_descriptor:        ; The null descriptor.  It's not used and it is
-	dd 0x0              ; generally considered a good idea.  It can be used
-	dd 0x0              ; to initialize unused segment registers.
+	dd 0x0          ; generally considered a good idea.  It can be used
+	dd 0x0          ; to initialize unused segment registers.
 
 code_segment_descriptor:
 	dw 0xffff		; Limit of the segment.

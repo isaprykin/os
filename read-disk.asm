@@ -11,7 +11,9 @@ load_disk_starting_second_sector:
         mov al, dh              ; Read DH many sectors.
         mov ch, 0x00            ; Start from the first cyclinder.
         mov dh, 0x00            ; Start from the first head.
-        mov cl, 0x02            ; Start from the second sector.
+        mov cl, 0x02            ; Start from the second sector. The image we
+				; are loading has the kernel code past the
+				; first sector (after the first 512 bytes).
         int 0x13                ; Call BIOS's disk interrupt.
 
         jc .error_reading_disk  ; Carry-flag is set on error.
