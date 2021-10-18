@@ -171,7 +171,8 @@ set_target_properties(system PROPERTIES ENABLE_EXPORTS 1)
 add_custom_target(kernel-bin
   DEPENDS system
   COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-ld -o ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf $<TARGET_LINKER_FILE:system>
-  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-objcopy -O binary -j ".text" -j ".rodata" -j ".data" -j ".eh_frame" -j ".bss" ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin
+  COMMAND ${TOOLCHAIN_ROOT}/bin/${TARGET}-objcopy -O binary -j ".text" -j ".rodata" -j ".data" -j ".bss" ${CMAKE_CURRENT_BINARY_DIR}/kernel.elf ${CMAKE_CURRENT_BINARY_DIR}/kernel.bin
+  COMMAND dd if=/dev/zero of=${CMAKE_CURRENT_BINARY_DIR}/kernel.bin bs=1 count=1 seek=8703
   BYPRODUCTS kernel.elf kernel.bin
   )
 
